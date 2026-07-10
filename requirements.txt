@@ -1,0 +1,8 @@
+playwright>=1.55,<2
+allure-pytest>=2.13,<3
+pytest>=8.4,<9
+pytest-base-url>=2.1,<3
+pytest-playwright>=0.7,<1
+pytest-retry>=1.7,<2
+pytest-html>=4.1,<5
+pytest-timeout>=2.4,<3
