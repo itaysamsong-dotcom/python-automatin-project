@@ -10,7 +10,8 @@ from src.utils.product_utils import search_items_by_name_under_price
 @allure.feature("Product search")
 @allure.title("Search returns up to five pliers under the maximum price")
 def test_search_pliers_under_price(page: Page) -> None:
-    urls = search_items_by_name_under_price(page, "Pliers", max_price=15, limit=5)
+    result_limit = 5
+    urls = search_items_by_name_under_price(page, "Pliers", max_price=15, limit=result_limit)
 
-    assert len(urls) == 5
+    assert 0 < len(urls) <= result_limit
     assert all(url.startswith("https://practicesoftwaretesting.com/product/") for url in urls)

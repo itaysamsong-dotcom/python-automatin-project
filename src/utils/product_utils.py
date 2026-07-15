@@ -1,9 +1,19 @@
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from playwright.sync_api import Locator, Page, Playwright
 
 from src.config.routes import BASE_URLS, URL_PATHS
 from src.mapping.selectors import SEARCH_SELECTORS
+
+
+def _is_products_response(response) -> bool:
+    response_url = urlparse(response.url)
+    api_url = urlparse(BASE_URLS["api"])
+    return (
+        response.request.method == "GET"
+        and (response_url.scheme, response_url.netloc) == (api_url.scheme, api_url.netloc)
+        and response_url.path.startswith(URL_PATHS["products_api"])
+    )
 
 
 def _set_max_price_filter(page: Page, max_price: float) -> None:
@@ -18,14 +28,24 @@ def _set_max_price_filter(page: Page, max_price: float) -> None:
     target = min(max(max_price, minimum), maximum)
 
     if max_slider.evaluate("element => element.tagName === 'INPUT'"):
-        max_slider.fill(str(target))
-        max_slider.dispatch_event("change")
+        with page.expect_response(_is_products_response):
+            max_slider.fill(str(target))
+            max_slider.dispatch_event("change")
         return
 
     step = float(max_slider.get_attribute("aria-valuestep") or 1)
-    max_slider.press("Home")
-    for _ in range(round((target - minimum) / step)):
-        max_slider.press("ArrowRight")
+    with page.expect_response(_is_products_response):
+        max_slider.press("Home")
+
+    current_value = float(max_slider.get_attribute("aria-valuenow") or minimum)
+    while current_value < target:
+        with page.expect_response(_is_products_response):
+            max_slider.press("ArrowRight")
+
+        next_value = float(max_slider.get_attribute("aria-valuenow") or current_value + step)
+        if next_value <= current_value:
+            raise RuntimeError("The maximum-price slider did not advance.")
+        current_value = next_value
 
 
 def _price(product_link: Locator) -> float:
