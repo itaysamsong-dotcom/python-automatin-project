@@ -36,6 +36,14 @@ PRODUCT_SELECTORS = {
     "add_to_cart": "add-to-cart",
 }
 
+SEARCH_SELECTORS = {
+    "query": "search-query",
+    "submit": "search-submit",
+    "product_prefix": "product-",
+    "product_price": "product-price",
+    "pagination_next": "pagination-next",
+}
+
 CHECKOUT_SELECTORS = {
     "continue_shopping": "continue-shopping",
     "payment_method": "payment-method",
@@ -50,4 +58,3 @@ CHECKOUT_LABELS = {"cash_payment_method": "Cash on Delivery"}
 
 TOAST_MESSAGE_SELECTORS = {"container": "#toast-container"}
 ERROR_MESSAGE_SELECTORS = {"email": "email-error", "password": "password-error"}
-

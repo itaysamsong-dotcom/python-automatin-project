@@ -4,6 +4,7 @@ BASE_URLS = {
 }
 
 URL_PATHS = {
+    "home": "/",
     "login": "/auth/login",
     "account": "/account",
     "admin_dashboard": "/admin/dashboard",
@@ -13,4 +14,3 @@ URL_PATHS = {
     "checkout": "/checkout",
     "invoices": "/invoices",
 }
-
