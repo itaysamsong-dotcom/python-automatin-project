@@ -45,6 +45,7 @@ SEARCH_SELECTORS = {
 }
 
 CHECKOUT_SELECTORS = {
+    "cart_total": "cart-total",
     "continue_shopping": "continue-shopping",
     "payment_method": "payment-method",
     "proceed_to_login": "proceed-1",

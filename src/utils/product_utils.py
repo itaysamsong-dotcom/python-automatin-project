@@ -10,37 +10,58 @@ def _is_products_response(response) -> bool:
     response_url = urlparse(response.url)
     api_url = urlparse(BASE_URLS["api"])
     return (
-        response.request.method == "GET"
+        response.request.method in ("GET", "QUERY")
         and (response_url.scheme, response_url.netloc) == (api_url.scheme, api_url.netloc)
         and response_url.path.startswith(URL_PATHS["products_api"])
     )
 
 
+def _wait_for_products_response(page: Page, action) -> None:
+    with page.expect_response(_is_products_response, timeout=10_000) as response_info:
+        action()
+
+    response = response_info.value
+    if not response.ok:
+        raise RuntimeError(f"Product search failed with status {response.status}.")
+
+
 def _set_max_price_filter(page: Page, max_price: float) -> None:
     """Use the page's maximum-price control when it exposes an accessible slider."""
-    sliders = page.locator("input[type='range'], [role='slider']")
+    native_ranges = page.locator("input[type='range']")
+    if native_ranges.count() > 0:
+        maximum_range = native_ranges.last
+
+        def set_native_range() -> None:
+            maximum_range.evaluate(
+                """(element, requestedPrice) => {
+                    const minimum = Number(element.min || 0);
+                    const maximum = Number(element.max || requestedPrice);
+                    element.value = String(Math.min(maximum, Math.max(minimum, requestedPrice)));
+                    element.dispatchEvent(new Event('input', { bubbles: true }));
+                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                }""",
+                max_price,
+            )
+
+        _wait_for_products_response(page, set_native_range)
+        return
+
+    sliders = page.locator("[role='slider']")
     if sliders.count() == 0:
         return
 
     max_slider = sliders.last
-    minimum = float(max_slider.get_attribute("min") or max_slider.get_attribute("aria-valuemin") or 0)
-    maximum = float(max_slider.get_attribute("max") or max_slider.get_attribute("aria-valuemax") or max_price)
+    minimum = float(max_slider.get_attribute("aria-valuemin") or 0)
+    maximum = float(max_slider.get_attribute("aria-valuemax") or max_price)
     target = min(max(max_price, minimum), maximum)
 
-    if max_slider.evaluate("element => element.tagName === 'INPUT'"):
-        with page.expect_response(_is_products_response):
-            max_slider.fill(str(target))
-            max_slider.dispatch_event("change")
-        return
-
     step = float(max_slider.get_attribute("aria-valuestep") or 1)
-    with page.expect_response(_is_products_response):
-        max_slider.press("Home")
+    max_slider.focus()
+    _wait_for_products_response(page, lambda: max_slider.press("Home"))
 
     current_value = float(max_slider.get_attribute("aria-valuenow") or minimum)
     while current_value < target:
-        with page.expect_response(_is_products_response):
-            max_slider.press("ArrowRight")
+        _wait_for_products_response(page, lambda: max_slider.press("ArrowRight"))
 
         next_value = float(max_slider.get_attribute("aria-valuenow") or current_value + step)
         if next_value <= current_value:
@@ -49,8 +70,17 @@ def _set_max_price_filter(page: Page, max_price: float) -> None:
 
 
 def _price(product_link: Locator) -> float:
-    price_text = product_link.get_by_test_id(SEARCH_SELECTORS["product_price"]).inner_text()
-    return float(price_text.replace("$", "").replace(",", "").strip())
+    price = product_link.locator(
+        f"xpath=.//*[@data-test='{SEARCH_SELECTORS['product_price']}']"
+    )
+    if price.count() == 0:
+        price = product_link.locator(
+            "xpath=ancestor::*[.//*[@data-test="
+            f"'{SEARCH_SELECTORS['product_price']}']][1]"
+            f"//*[@data-test='{SEARCH_SELECTORS['product_price']}']"
+        )
+    price_text = price.first.text_content() or ""
+    return float("".join(character for character in price_text if character.isdigit() or character in ".-"))
 
 
 def search_items_by_name_under_price(
@@ -63,8 +93,9 @@ def search_items_by_name_under_price(
         return []
 
     page.get_by_test_id(SEARCH_SELECTORS["query"]).fill(query)
-    with page.expect_response(lambda response: "/products" in response.url):
-        page.get_by_test_id(SEARCH_SELECTORS["submit"]).click()
+    _wait_for_products_response(
+        page, lambda: page.get_by_test_id(SEARCH_SELECTORS["submit"]).click()
+    )
 
     _set_max_price_filter(page, max_price)
     urls: list[str] = []
@@ -99,9 +130,7 @@ def search_items_by_name_under_price(
         if disabled:
             break
 
-        current_url = page.url
-        next_page.click()
-        page.wait_for_function("previousUrl => window.location.href !== previousUrl", current_url)
+        _wait_for_products_response(page, next_page.click)
 
     return urls
 

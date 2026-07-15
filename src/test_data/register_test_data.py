@@ -23,4 +23,3 @@ REGISTER_USERS = {
         **BILLING_ADDRESS.__dict__,
     )
 }
-
