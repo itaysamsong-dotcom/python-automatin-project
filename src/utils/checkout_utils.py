@@ -8,7 +8,7 @@ from src.utils.login_utils import login_user
 from src.utils.register_utils import fill_billing_address
 
 
-def add_item_to_shopping_cart(page: Page, product_id: str, product: Product) -> None:
+def add_items_to_cart(page: Page, product_id: str, product: Product) -> None:
     expect(page).to_have_url(endpoint(f"{URL_PATHS['product']}/{product_id}"))
     page.get_by_test_id(PRODUCT_SELECTORS["add_to_cart"]).click()
     expect(page.get_by_test_id(PRODUCT_SELECTORS["product_name"])).to_have_text(product.name)
@@ -44,4 +44,3 @@ def check_product_creation(page: Page) -> None:
     invoice: InvoiceResponse = response.json()
     expect(page.get_by_test_id(CHECKOUT_SELECTORS["payment_success_message"])).to_be_visible()
     expect(page.locator(CHECKOUT_SELECTORS["invoice_number"])).to_have_text(invoice["invoice_number"])
-
